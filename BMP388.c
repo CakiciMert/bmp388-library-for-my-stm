@@ -12,7 +12,8 @@ uint8_t BMP388_WIA;
 
 uint32_t raw_pressure, raw_temperature,time;
 float altitude, pressure, temperature;
-
+uint8_t bmp388_id;
+HAL_StatusTypeDef result;
 
 
 uint16_t NVM_PAR_T1;
@@ -73,20 +74,20 @@ void TrimParameterReadout()
 
 	initialize_calib_data(&calib_data);
 }
-
+uint8_t dataToWrite;
 void BMP388_Init()
 {
-	uint8_t dataToWrite;
-	uint8_t bmp388_id;
+
+
 
 	//BMP388_ReadBytes(bmp, CHIP_ID, &chip_id, 1)
-	HAL_StatusTypeDef result;
-	result=HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR << 1, BMP388_CHIP_ID, I2C_MEMADD_SIZE_8BIT, &bmp388_id, 1, 100);
+
+	result=HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR << 1, BMP388_ID, I2C_MEMADD_SIZE_8BIT, &bmp388_id, 1, 100);
 	if(result != HAL_OK && bmp388_id == BMP388_CHIP_ID)// DEĞİLSE RESET AT sonra eklicem
 	{
-		TrimParameterReadout();
+		//TrimParameterReadout();
 	}
-
+	TrimParameterReadout();
 	//HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR, BMP388_ID, 1, &BMP388_WIA, 1, 10);
 
 	//dataToWrite=0xB6;
@@ -95,19 +96,19 @@ void BMP388_Init()
 
 	///osr phase   temp soldaki
 	dataToWrite=0x00;
-	dataToWrite = dataToWrite | (BMP388_OVERSAMPLING_4X << 3) | BMP388_OVERSAMPLING_8X;    // temp os si 4  pres os si 8 yaptık
-	HAL_I2C_Mem_Write(BMP388_I2C, BMP388_ADDR << 1, OSR, 1, &dataToWrite, 1, 10);
+	dataToWrite = dataToWrite | (BMP388_OVERSAMPLING_2X << 3) | BMP388_OVERSAMPLING_8X;    // temp os si 2  pres os si 8 yaptık
+	HAL_I2C_Mem_Write(BMP388_I2C, BMP388_ADDR << 1, OSR, 1, &dataToWrite, 1, 100);
 
 
 
 
 	dataToWrite=0x00;
-	dataToWrite = dataToWrite | (BMP3_IIR_FILTER_COEFF_1 << 1); //osrs temperature
+	dataToWrite = dataToWrite | (BMP388_IIR_FILTER_COEFF_1 << 1); //osrs temperature
 
 	HAL_I2C_Mem_Write(BMP388_I2C, BMP388_ADDR << 1, CONFIG, I2C_MEMADD_SIZE_8BIT, &dataToWrite, 1, 100);
 
 	dataToWrite=0x00;
-	dataToWrite = dataToWrite | BMP388_ODR_0_1_HZ;
+	dataToWrite = dataToWrite | BMP388_ODR_12_5_HZ;
 	HAL_I2C_Mem_Write(BMP388_I2C, BMP388_ADDR << 1, ODR, I2C_MEMADD_SIZE_8BIT, &dataToWrite, 1, 100);
 
 	dataToWrite=0x00;
@@ -174,21 +175,21 @@ return comp_press;
 
 
 // ... [BMP388_compensate_temperature and BMP388_compensate_pressure functions] ...
-
+uint8_t raw_data[12];
 void BMP388_GetData()
 {
+	//TrimParameterReadout();
 
-    uint8_t buffer[12];
-    HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR, DATA_0, 1, buffer, 11, 10);
-    raw_pressure = (buffer[0] << 16) | (buffer[1] << 8) | (buffer[2]);
-    raw_temperature = (buffer[3] << 16) | (buffer[4] << 8) | (buffer[5]);
-    time = (uint32_t)buffer[10] << 16 | (uint32_t)buffer[9] << 8 | (uint32_t)buffer[8];
+    result=HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR<< 1 , DATA_0, 1, raw_data, 6, 10);
+    raw_pressure = (uint32_t) raw_data[2] << 16 | (uint32_t)raw_data[1] << 8 | (uint32_t)raw_data[0];
+    raw_temperature = (uint32_t)raw_data[5] << 16 | (uint32_t)raw_data[4] << 8 | (uint32_t)raw_data[3];
+    //time = (uint32_t)raw_data[10] << 16 | (uint32_t)raw_data[9] << 8 | (uint32_t)raw_data[8];
 
     temperature = BMP388_compensate_temperature(raw_temperature, &calib_data);
 
     pressure = BMP388_compensate_pressure(raw_pressure, &calib_data) / 256.0;
 
-    temperature = temperature / 100.0;
+
     altitude = Get_Altitude(pressure);
 }
 
