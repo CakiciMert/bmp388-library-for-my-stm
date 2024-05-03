@@ -10,7 +10,7 @@
 
 #include "stm32f4xx_hal.h"
 
-#define BMP388_I2C 	   &hi2c1
+#define BMP388_I2C 	   &hi2c2
 
 #define BMP388_ADDR    (0x76) //sdo gnd
 
@@ -136,6 +136,8 @@ float BMP388_compensate_temperature(uint32_t uncomp_temp, struct BMP388_calib_da
 float BMP388_compensate_pressure(uint32_t uncomp_press, struct BMP388_calib_data *calib_data);
 
 float BMP388_Calibration();
+
+float BMP388_GetData();
 
 float Get_Altitude(float press);
 
