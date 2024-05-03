@@ -6,7 +6,7 @@
  */
 #include "BMP388.h"
 #include <math.h>
-extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
 
 uint8_t BMP388_WIA;
 
@@ -57,24 +57,26 @@ void TrimParameterReadout()
 	uint8_t buffer[24];
 	HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR << 1, 0x31, 1, buffer, 21, 10);
 
-	NVM_PAR_T1 = (buffer[1]<<8) | buffer[0];
-	NVM_PAR_T2 = (buffer[3]<<8) | buffer[2];
+	NVM_PAR_T1 = (buffer[1] << 8) | buffer[0];
+	NVM_PAR_T2 = (buffer[3] << 8) | buffer[2];
 	NVM_PAR_T3 =  buffer[4];
-	NVM_PAR_P1 = (buffer[6]<<8) | buffer[5];
-	NVM_PAR_P2 = (buffer[8]<<8) | buffer[7];
+	NVM_PAR_P1 = (buffer[6] << 8) | buffer[5];
+	NVM_PAR_P2 = (buffer[8] << 8) | buffer[7];
 	NVM_PAR_P3 =  buffer[9];
 	NVM_PAR_P4 =  buffer[10];
-	NVM_PAR_P5 = (buffer[12]<<8) | buffer[11];
-	NVM_PAR_P6 = (buffer[14]<<8) | buffer[13];
+	NVM_PAR_P5 = (buffer[12] << 8) | buffer[11];
+	NVM_PAR_P6 = (buffer[14] << 8) | buffer[13];
 	NVM_PAR_P7 =  buffer[15];
 	NVM_PAR_P8 =  buffer[16];
-	NVM_PAR_P9 = (buffer[18]<<8) | buffer[17];
+	NVM_PAR_P9 = (buffer[18] << 8) | buffer[17];
 	NVM_PAR_P10 =  buffer[19];
 	NVM_PAR_P11 =  buffer[20];
 
 	initialize_calib_data(&calib_data);
+
 }
 uint8_t dataToWrite;
+
 void BMP388_Init()
 {
 
@@ -83,9 +85,12 @@ void BMP388_Init()
 	//BMP388_ReadBytes(bmp, CHIP_ID, &chip_id, 1)
 
 	result=HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR << 1, BMP388_ID, I2C_MEMADD_SIZE_8BIT, &bmp388_id, 1, 100);
+
 	if(result != HAL_OK && bmp388_id == BMP388_CHIP_ID)// DEĞİLSE RESET AT sonra eklicem
 	{
+
 		//TrimParameterReadout();
+
 	}
 	TrimParameterReadout();
 	//HAL_I2C_Mem_Read(BMP388_I2C, BMP388_ADDR, BMP388_ID, 1, &BMP388_WIA, 1, 10);
@@ -176,7 +181,7 @@ return comp_press;
 
 // ... [BMP388_compensate_temperature and BMP388_compensate_pressure functions] ...
 uint8_t raw_data[12];
-void BMP388_GetData()
+float BMP388_GetData()
 {
 	//TrimParameterReadout();
 
@@ -184,27 +189,30 @@ void BMP388_GetData()
     raw_pressure = (uint32_t) raw_data[2] << 16 | (uint32_t)raw_data[1] << 8 | (uint32_t)raw_data[0];
     raw_temperature = (uint32_t)raw_data[5] << 16 | (uint32_t)raw_data[4] << 8 | (uint32_t)raw_data[3];
     //time = (uint32_t)raw_data[10] << 16 | (uint32_t)raw_data[9] << 8 | (uint32_t)raw_data[8];
-
+    TrimParameterReadout();//// bundan emin değilim
     temperature = BMP388_compensate_temperature(raw_temperature, &calib_data);
 
     pressure = BMP388_compensate_pressure(raw_pressure, &calib_data) / 256.0;
 
 
     altitude = Get_Altitude(pressure);
+    return altitude;
 }
 
 float BMP388_Calibration()// duzgun calibration yazarsınız
 {
 	int total = 0;
-	int i=0;
 
-	while(i<100){
-		BMP388_GetData();
-		total += pressure;
-		i++;
+
+	for(int i=0;i<100;i++)
+	{
+
+		total += BMP388_GetData();
 	}
 
-	return Get_Altitude(total/100.0);
+
+
+	return total/100.0;
 }
 
 float Get_Altitude(float press)
